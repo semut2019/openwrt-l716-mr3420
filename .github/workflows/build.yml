@@ -1,57 +1,52 @@
-name: Build OpenWrt TL-MR3420 L716
+name: Build OpenWrt L716 MR3420 Firmware
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Compile OpenWrt for TL-MR3420 v5 + Fibocom L716
+    name: Build OpenWrt Firmware for TL-MR3420 + Fibocom L716
+
     steps:
-      - name: 🧾 Checkout Source
-        uses: actions/checkout@v4
+    - name: Checkout this repo
+      uses: actions/checkout@v4
 
-      - name: 🛠️ Install Dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential clang flex bison g++ gawk \
-            gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev \
-            python3-distutils rsync unzip zlib1g-dev file wget python3-setuptools
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential ccache ecj fastjar file g++ gawk \
+        gettext git java-propose-classpath libelf-dev libncurses5-dev \
+        libncursesw5-dev libssl-dev python3 unzip wget python3-distutils \
+        python3-setuptools zlib1g-dev
 
-      - name: 💻 Clone OpenWrt
-        run: |
-          git clone https://github.com/openwrt/openwrt.git
-          cd openwrt
-          git checkout v23.05.2
+    - name: Clone OpenWrt source
+      run: |
+        git clone https://github.com/openwrt/openwrt.git
+        cd openwrt
+        git checkout v23.05.2
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
 
-      - name: 📦 Copy .config
-        run: |
-          cp .config ./openwrt/.config
+    - name: Copy pre-configured .config
+      run: |
+        cp ../.config ./openwrt/.config
 
-      - name: 🔄 Update Feeds
-        run: |
-          cd openwrt
-          ./scripts/feeds update -a
-          ./scripts/feeds install -a
+    - name: Prepare build
+      run: |
+        cd openwrt
+        make defconfig
 
-      - name: ⚙️ Build Firmware
-        run: |
-          cd openwrt
-          make defconfig
-          make -j$(nproc) || make -j1 V=s
+    - name: Build firmware
+      run: |
+        cd openwrt
+        make -j$(nproc)
 
-      - name: 📁 Compress Output
-        run: |
-          mkdir -p output
-          cp openwrt/bin/targets/ramips/mt76x8/*.bin output/
-          cp openwrt/.config output/build-config.txt
-          zip -r openwrt-tl-mr3420-l716.zip output
-
-      - name: 🚀 Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: openwrt-tl-mr3420-l716
-          path: openwrt-tl-mr3420-l716.zip
+    - name: Upload firmware
+      uses: actions/upload-artifact@v4
+      with:
+        name: openwrt-firmware-tl-mr3420-l716
+        path: openwrt/bin/targets/*/*/*.bin
