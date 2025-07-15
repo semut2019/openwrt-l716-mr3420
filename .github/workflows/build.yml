@@ -1,52 +1,45 @@
 name: Build OpenWrt L716 MR3420 Firmware
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build OpenWrt Firmware for TL-MR3420 + Fibocom L716
 
     steps:
-    - name: Checkout this repo
-      uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y build-essential ccache ecj fastjar file g++ gawk \
-        gettext git java-propose-classpath libelf-dev libncurses5-dev \
-        libncursesw5-dev libssl-dev python3 unzip wget python3-distutils \
-        python3-setuptools zlib1g-dev
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib gettext git libncurses-dev libssl-dev python3 unzip zlib1g-dev file wget
 
-    - name: Clone OpenWrt source
-      run: |
-        git clone https://github.com/openwrt/openwrt.git
-        cd openwrt
-        git checkout v23.05.2
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
+      - name: Clone OpenWrt source
+        run: |
+          git clone https://github.com/openwrt/openwrt.git
+          cd openwrt
+          git checkout v23.05.2
 
-    - name: Copy pre-configured .config
-      run: |
-        cp ../.config ./openwrt/.config
+      - name: Copy .config
+        run: |
+          cp .config openwrt/.config
 
-    - name: Prepare build
-      run: |
-        cd openwrt
-        make defconfig
+      - name: Update & install feeds
+        run: |
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
-    - name: Build firmware
-      run: |
-        cd openwrt
-        make -j$(nproc)
+      - name: Build firmware
+        run: |
+          cd openwrt
+          make defconfig
+          make -j$(nproc)
 
-    - name: Upload firmware
-      uses: actions/upload-artifact@v4
-      with:
-        name: openwrt-firmware-tl-mr3420-l716
-        path: openwrt/bin/targets/*/*/*.bin
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenWrt-Firmware
+          path: openwrt/bin/targets/
