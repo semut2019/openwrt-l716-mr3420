@@ -1,23 +1,29 @@
-name: Build OpenWrt Firmware for TL-MR3420 + Fibocom L716
+name: Build OpenWrt TL-MR3420 + L716 Firmware
 
 on:
+  push:
+    tags:
+      - "v*"
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout this repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Set up dependencies
         run: |
           sudo apt update
-          sudo apt install -y \
-            build-essential clang flex bison g++ gawk gcc-multilib \
-            gettext git libncurses-dev libssl-dev unzip zlib1g-dev file wget \
-            python3 python3-setuptools python3-pip
+          sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib \
+            gettext git libncurses-dev libssl-dev python3 unzip zlib1g-dev file wget \
+            qemu-utils upx libelf-dev ecj fastjar java-propose-classpath
+
+      - name: Clean old build if exists
+        run: |
+          rm -rf openwrt || true
 
       - name: Clone OpenWrt source
         run: |
@@ -25,7 +31,7 @@ jobs:
           cd openwrt
           git checkout v23.05.2
 
-      - name: Copy .config
+      - name: Copy custom .config
         run: |
           cp .config openwrt/.config
 
@@ -39,10 +45,25 @@ jobs:
         run: |
           cd openwrt
           make defconfig
-          make -j$(nproc) || make -j1 V=s
+          make -j$(nproc) download world
 
-      - name: Upload firmware
-        uses: actions/upload-artifact@v4
+      - name: Package output
+        run: |
+          cd openwrt/bin/targets/*/*
+          zip -r OpenWrt-Firmware-TL-MR3420-L716.zip *
+
+      - name: Generate SHA256
+        run: |
+          cd openwrt/bin/targets/*/*
+          sha256sum OpenWrt-Firmware-TL-MR3420-L716.zip > SHA256SUMS
+
+      - name: Upload release to GitHub
+        uses: softprops/action-gh-release@v2
         with:
-          name: OpenWrt-Firmware-TL-MR3420-L716
-          path: openwrt/bin/targets/
+          name: OpenWrt L716 Firmware ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          files: |
+            openwrt/bin/targets/*/*/OpenWrt-Firmware-TL-MR3420-L716.zip
+            openwrt/bin/targets/*/*/SHA256SUMS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
