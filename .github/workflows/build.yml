@@ -1,11 +1,9 @@
 name: Build OpenWrt for TL-MR6400v4
 
 on:
-  # Jalankan saat ada push ke branch main
   push:
     branches:
       - main
-  # Izinkan untuk menjalankan build secara manual dari tab Actions
   workflow_dispatch:
 
 jobs:
@@ -21,7 +19,8 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential ccache clang flex g++ gawk gcc-multilib gettext git libncurses5-dev libssl-dev python3-distutils rsync unzip zlib1g-dev file wget
+          # 'python3-distutils' dihapus dari baris di bawah ini
+          sudo apt-get install -y build-essential ccache clang flex g++ gawk gcc-multilib gettext git libncurses5-dev libssl-dev rsync unzip zlib1g-dev file wget
 
       # 3. Menyiapkan feeds OpenWrt
       - name: Update and install feeds
@@ -32,25 +31,21 @@ jobs:
       # 4. Memuat dan memvalidasi konfigurasi kustom Anda
       - name: Load custom configuration
         run: |
-          # Memastikan file .config dari repo Anda digunakan
           make defconfig
 
-      # 5. Mengunduh semua source code paket (membantu debug jika ada masalah)
+      # 5. Mengunduh semua source code paket
       - name: Download package sources
         run: make download -j$(nproc)
 
       # 6. Memulai proses build firmware
       - name: Build firmware
         run: |
-          # Menjalankan build dengan log yang detail jika terjadi error
           make -j$(nproc) V=s
 
       # 7. Mengatur file hasil build untuk diunggah
       - name: Prepare firmware files for upload
         run: |
-          # Membuat direktori artefak
           mkdir -p ./artifact/
-          # Menyalin file sysupgrade dan factory ke direktori artefak
           find bin/targets/ramips/mt76x8/ -name "*sysupgrade.bin" -exec cp {} ./artifact/ \;
           find bin/targets/ramips/mt76x8/ -name "*factory.bin" -exec cp {} ./artifact/ \;
 
