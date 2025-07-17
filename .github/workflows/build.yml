@@ -15,41 +15,46 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Menginstal semua paket yang dibutuhkan untuk build di Ubuntu
+      # 2. !! LANGKAH PENTING: Menghapus workflow bawaan OpenWrt yang menyebabkan konflik !!
+      - name: Remove conflicting OpenWrt workflows
+        run: |
+          rm -f .github/workflows/*.yml
+          echo "Conflicting workflows removed. Using custom build script."
+
+      # 3. Menginstal semua paket yang dibutuhkan untuk build di Ubuntu
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          # 'python3-distutils' dihapus dari baris di bawah ini
           sudo apt-get install -y build-essential ccache clang flex g++ gawk gcc-multilib gettext git libncurses5-dev libssl-dev rsync unzip zlib1g-dev file wget
 
-      # 3. Menyiapkan feeds OpenWrt
+      # 4. Menyiapkan feeds OpenWrt
       - name: Update and install feeds
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      # 4. Memuat dan memvalidasi konfigurasi kustom Anda
+      # 5. Memuat dan memvalidasi konfigurasi kustom Anda
       - name: Load custom configuration
         run: |
           make defconfig
 
-      # 5. Mengunduh semua source code paket
+      # 6. Mengunduh semua source code paket
       - name: Download package sources
         run: make download -j$(nproc)
 
-      # 6. Memulai proses build firmware
+      # 7. Memulai proses build firmware
       - name: Build firmware
         run: |
           make -j$(nproc) V=s
 
-      # 7. Mengatur file hasil build untuk diunggah
+      # 8. Mengatur file hasil build untuk diunggah
       - name: Prepare firmware files for upload
         run: |
           mkdir -p ./artifact/
-          find bin/targets/ramips/mt76x8/ -name "*sysupgrade.bin" -exec cp {} ./artifact/ \;
-          find bin/targets/ramips/mt76x8/ -name "*factory.bin" -exec cp {} ./artifact/ \;
+          find bin/targets/ramips/mt76x8/ -name "*sysupgrade.bin" -exec cp {} ./artifact/ \; || true
+          find bin/targets/ramips/mt76x8/ -name "*factory.bin" -exec cp {} ./artifact/ \; || true
 
-      # 8. Mengunggah firmware yang sudah jadi sebagai artifact
+      # 9. Mengunggah firmware yang sudah jadi sebagai artifact
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
