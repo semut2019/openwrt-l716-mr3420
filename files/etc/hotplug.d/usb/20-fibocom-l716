@@ -1,0 +1,12 @@
+#!/bin/sh
+# Hotplug script for Fibocom L716 modem
+
+# Vendor ID: 2cb7, Product ID: 0001
+if [ "$PRODUCT" = "2cb7/0001/0" ] && [ "$ACTION" = "add" ]; then
+    # Beri jeda singkat agar modem siap sepenuhnya
+    sleep 5
+
+    # Bawa antarmuka wwan
+    logger "Fibocom L716 detected, attempting to bring up wwan interface."
+    ifup wwan
+fi

@@ -11,42 +11,46 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      # Langkah 1: Checkout repositori Anda (yang berisi file konfigurasi)
+      - name: Checkout configuration files
         uses: actions/checkout@v4
 
-      - name: Remove conflicting OpenWrt workflows
-        run: rm -f .github/workflows/*.yml
-
+      # Langkah 2: Instal dependensi
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential ccache clang flex g++ gawk gcc-multilib gettext git libncurses5-dev libssl-dev rsync unzip zlib1g-dev file wget
 
-      - name: Update and install feeds
+      # Langkah 3: Clone source code OpenWrt
+      - name: Clone OpenWrt source code
+        run: git clone https://github.com/openwrt/openwrt.git --depth 1 --branch v23.05.3 openwrt
+
+      # Langkah 4: Salin konfigurasi kustom Anda ke folder source code
+      - name: Apply custom configuration
+        run: |
+          cp .config openwrt/
+          if [ -d "files" ]; then
+            cp -r files/* openwrt/files/
+          fi
+
+      # Langkah 5: Jalankan proses build di dalam folder "openwrt"
+      - name: Build the firmware
+        working-directory: ./openwrt
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
+          make defconfig
+          make download -j$(nproc)
+          echo "Starting main build process..."
+          make -j$(nproc) V=s
 
-      - name: Load custom configuration
-        run: make defconfig
-
-      - name: Download package sources
-        run: make download -j$(nproc)
-
-      - name: Build firmware
-        run: make -j$(nproc) V=s
-
-      # LANGKAH DEBUG BARU DI SINI
-      - name: List build results
+      # Langkah 6: Siapkan file firmware untuk diunggah
+      - name: Prepare firmware artifact
         run: |
-          echo "Listing contents of bin/targets directory:"
-          ls -lR bin/targets/
+          mkdir -p ./artifact
+          find openwrt/bin/targets/ramips/mt76x8/ -name "*sysupgrade.bin" -exec cp {} ./artifact/ \; || true
 
-      - name: Prepare firmware files for upload
-        run: |
-          mkdir -p ./artifact/
-          find bin/targets/ramips/mt76x8/ -name "*sysupgrade.bin" -exec cp {} ./artifact/ \; || true
-
+      # Langkah 7: Unggah artifact
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
