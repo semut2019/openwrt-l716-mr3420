@@ -11,50 +11,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Mengambil kode dari repositori Anda
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. !! LANGKAH PENTING: Menghapus workflow bawaan OpenWrt yang menyebabkan konflik !!
       - name: Remove conflicting OpenWrt workflows
-        run: |
-          rm -f .github/workflows/*.yml
-          echo "Conflicting workflows removed. Using custom build script."
+        run: rm -f .github/workflows/*.yml
 
-      # 3. Menginstal semua paket yang dibutuhkan untuk build di Ubuntu
       - name: Install build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential ccache clang flex g++ gawk gcc-multilib gettext git libncurses5-dev libssl-dev rsync unzip zlib1g-dev file wget
 
-      # 4. Menyiapkan feeds OpenWrt
       - name: Update and install feeds
         run: |
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      # 5. Memuat dan memvalidasi konfigurasi kustom Anda
       - name: Load custom configuration
-        run: |
-          make defconfig
+        run: make defconfig
 
-      # 6. Mengunduh semua source code paket
       - name: Download package sources
         run: make download -j$(nproc)
 
-      # 7. Memulai proses build firmware
       - name: Build firmware
-        run: |
-          make -j$(nproc) V=s
+        run: make -j$(nproc) V=s
 
-      # 8. Mengatur file hasil build untuk diunggah
+      # LANGKAH DEBUG BARU DI SINI
+      - name: List build results
+        run: |
+          echo "Listing contents of bin/targets directory:"
+          ls -lR bin/targets/
+
       - name: Prepare firmware files for upload
         run: |
           mkdir -p ./artifact/
           find bin/targets/ramips/mt76x8/ -name "*sysupgrade.bin" -exec cp {} ./artifact/ \; || true
-          find bin/targets/ramips/mt76x8/ -name "*factory.bin" -exec cp {} ./artifact/ \; || true
 
-      # 9. Mengunggah firmware yang sudah jadi sebagai artifact
       - name: Upload firmware artifact
         uses: actions/upload-artifact@v4
         with:
