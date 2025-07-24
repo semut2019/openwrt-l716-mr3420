@@ -1,31 +1,32 @@
+
 config interface 'loopback'
-    option device 'lo'
-    option proto 'static'
-    option ipaddr '127.0.0.1'
-    option netmask '255.0.0.0'
+	option device 'lo'
+	option proto 'static'
+	option ipaddr '127.0.0.1'
+	option netmask '255.0.0.0'
 
 config globals 'globals'
-    option ula_prefix 'auto'
-
-config device
-    option name 'br-lan'
-    option type 'bridge'
-    list ports 'lan1'
-    list ports 'lan2'
-    list ports 'lan3'
-    list ports 'lan4'
+	option ula_prefix 'fd00::/48'
 
 config interface 'lan'
-    option device 'br-lan'
-    option proto 'static'
-    option ipaddr '192.168.1.1'
-    option netmask '255.255.255.0'
-    option ip6assign '60'
+	option device 'br-lan'
+	option proto 'static'
+	option ipaddr '192.168.15.1'
+	option netmask '255.255.255.0'
+	option ip6assign '60'
+
+config device
+	option name 'br-lan'
+	option type 'bridge'
+	list ports 'eth0'
+
+config interface 'wan'
+	option proto 'dhcp'
+	option device 'eth1'
 
 config interface 'wwan'
-    option proto 'qmi'
-    option device '/dev/cdc-wdm0'
-    option apn 'internet' # Ganti 'internet' dengan APN provider Anda
-    option auth 'none'
-    option pdptype 'ipv4'
-    option auto '1'
+	option proto 'qmi'
+	option device '/dev/cdc-wdm0'
+	option apn 'internet'
+	option auth 'none'
+	option auto '1'
