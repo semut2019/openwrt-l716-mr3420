@@ -1,0 +1,7 @@
+
+#!/bin/sh
+[ "$ACTION" = "add" ] || exit 0
+[ "$DEVNAME" = "ttyUSB2" ] || exit 0
+
+logger -t l716 "Modem terdeteksi, memulai koneksi..."
+/etc/init.d/fibocom-l716 restart &
