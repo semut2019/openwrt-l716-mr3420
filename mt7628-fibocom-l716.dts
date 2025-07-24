@@ -1,0 +1,113 @@
+/dts-v1/;
+
+#include "mt7628an.dtsi"
+
+/ {
+	compatible = "fibocom,l716-router", "mediatek,mt7628an-soc";
+	model = "Fibocom L716-CN Router";
+
+	chosen {
+		bootargs = "console=ttyS0,57600";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x8000000>;
+	};
+
+	usb-phy {
+		status = "okay";
+	};
+
+	gpio-keys-polled {
+		compatible = "gpio-keys-polled";
+		poll-interval = <20>;
+
+		reset {
+			label = "reset";
+			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+			linux,code = <KEY_RESTART>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		power {
+			label = "fibocom:blue:power";
+			gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		};
+
+		wan {
+			label = "fibocom:green:wan";
+			gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	usb@1 {
+		status = "okay";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		/* Port untuk Fibocom L716-CN */
+		fibocom-modem@1 {
+			compatible = "usb-serial";
+			reg = <1>;
+			/* AT command port */
+			ch341-uart = <&uart1>;
+		};
+	};
+};
+
+&spi0 {
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "u-boot";
+				reg = <0x0 0x30000>;
+				read-only;
+			};
+
+			partition@30000 {
+				label = "config";
+				reg = <0x30000 0x10000>;
+				read-only;
+			};
+
+			factory: partition@40000 {
+				label = "factory";
+				reg = <0x40000 0x10000>;
+				read-only;
+			};
+
+			partition@50000 {
+				compatible = "denx,uimage";
+				label = "firmware";
+				reg = <0x50000 0x7b0000>;
+			};
+		};
+	};
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&ethernet {
+	mtd-mac-address = <&factory 0x28>;
+};
+
+&wmac {
+	status = "okay";
+	mediatek,mtd-eeprom = <&factory 0x0>;
+};
