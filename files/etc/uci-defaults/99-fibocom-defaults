@@ -1,0 +1,6 @@
+uci set network.wwan.proto='qmi'
+uci set network.wwan.device='/dev/cdc-wdm0'
+uci set network.wwan.apn='internet'
+uci set network.wwan.auth='none'
+uci set network.wwan.auto='1'
+uci commit network
