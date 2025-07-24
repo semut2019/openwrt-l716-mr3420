@@ -1,0 +1,5 @@
+
+# rc.local (auto start)
+echo 0 > /sys/class/leds/led1/brightness
+/etc/init.d/fibocom-l716 enable
+exit 0
