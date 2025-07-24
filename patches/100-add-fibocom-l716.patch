@@ -1,0 +1,13 @@
+--- a/target/linux/ramips/image/mt76x8.mk
++++ b/target/linux/ramips/image/mt76x8.mk
+@@ -10,6 +10,13 @@
+ endef
+ TARGET_DEVICES += mt7628-rfb
+ 
++define Device/fibocom-l716-router
++  IMAGE_SIZE := 7936k
++  DEVICE_VENDOR := Fibocom
++  DEVICE_MODEL := L716-CN Router
++  DEVICE_PACKAGES := kmod-usb2 kmod-usb-ohci kmod-usb-serial-option
++endef
++TARGET_DEVICES += fibocom-l716-router
