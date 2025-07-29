@@ -1,104 +1,103 @@
-name: Build OpenWRT for MT7628 with Fibocom L716-CN
+# Nama Workflow
+name: Build OpenWrt 19.07.10 for MR3420v5 (Full Modem Support)
 
+# Pemicu Workflow
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 120
+    # Menggunakan Ubuntu 20.04, sangat kompatibel dengan OpenWrt 19.07
+    runs-on: ubuntu-20.04
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
+      # Langkah 1: Checkout
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Setup Build Environment
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
-        gettext git java-propose-classpath libelf-dev libncurses5-dev \
-        libncursesw5-dev libssl-dev python python3-distutils python3 unzip \
-        wget rsync subversion swig time xsltproc zlib1g-dev
+      # Langkah 2: Instal semua dependensi build
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git-core libncurses5-dev zlib1g-dev \
+          gawk flex quilt libssl-dev xsltproc libxml-parser-perl unzip python3-distutils
 
-    - name: Clone OpenWRT Source
-      run: |
-        git clone --depth=1 https://git.openwrt.org/openwrt/openwrt.git
-        cd openwrt
-        git checkout v22.03.3
+      # Langkah 3: Unduh source code OpenWrt versi STABIL 19.07.10
+      - name: Clone OpenWrt source code
+        run: git clone https://github.com/openwrt/openwrt.git -b v19.07.10 openwrt
 
-    - name: Add Custom DTS
-      run: |
-        mkdir -p openwrt/target/linux/ramips/dts/
-        cp mt7628-fibocom-l716.dts openwrt/target/linux/ramips/dts/
-        sed -i '/mt7628an.dtsi/a \\tmt7628-fibocom-l716.dts' openwrt/target/linux/ramips/image/mt76x8.mk
+      # Langkah 4: Perbarui dan instal feeds
+      - name: Update and install feeds
+        run: |
+          cd openwrt
+          ./scripts/feeds update -a
+          ./scripts/feeds install -a
 
-    - name: Configure Feeds
-      run: |
-        cd openwrt
-        ./scripts/feeds update -a
-        ./scripts/feeds install -a
+      # Langkah 5: Buat file .config dengan SEMUA PAKET yang Anda minta
+      - name: Generate custom .config file
+        run: |
+          cd openwrt
+          cat <<'EOF' > .config
+          # Target Perangkat (SPESIFIK UNTUK MR3420v5)
+          CONFIG_TARGET_ramips=y
+          CONFIG_TARGET_ramips_mt76x8=y
+          CONFIG_TARGET_ramips_mt76x8_DEVICE_tplink_tl-mr3420-v5=y
 
-    - name: Generate Config
-      run: |
-        cd openwrt
-        cat << EOF > .config
-        CONFIG_TARGET_ramips=y
-        CONFIG_TARGET_ramips_mt76x8=y
-        CONFIG_TARGET_ramips_mt76x8_DEVICE_fibocom-l716-router=y
-        
-        # Kernel
-        CONFIG_LINUX_5_10=y
-        CONFIG_PACKAGE_kmod-mt76x8=y
-        
-        # USB Support
-        CONFIG_PACKAGE_kmod-usb-core=y
-        CONFIG_PACKAGE_kmod-usb2=y
-        CONFIG_PACKAGE_kmod-usb-ohci=y
-        CONFIG_PACKAGE_kmod-usb-serial=y
-        CONFIG_PACKAGE_kmod-usb-serial-option=y
-        CONFIG_PACKAGE_kmod-usb-net=y
-        CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
-        CONFIG_PACKAGE_kmod-usb-net-rndis=y
-        
-        # Modem Tools
-        CONFIG_PACKAGE_comgt=y
-        CONFIG_PACKAGE_chat=y
-        CONFIG_PACKAGE_kmod-usb-serial-wwan=y
-        CONFIG_PACKAGE_luci-proto-3g=y
-        CONFIG_PACKAGE_luci-proto-qmi=y
-        
-        # LuCI
-        CONFIG_PACKAGE_luci=y
-        CONFIG_PACKAGE_luci-compat=y
-        EOF
-        
-        make defconfig
+          # === PAKET DASAR DAN ANTARMUKA WEB ===
+          CONFIG_PACKAGE_luci=y
+          CONFIG_PACKAGE_usbutils=y
 
-    - name: Build Firmware
-      run: |
-        cd openwrt
-        make -j$(nproc) V=s 2>&1 | tee build.log
+          # === PAKET MODEM LENGKAP SESUAI PERMINTAAN ANDA ===
+          # -- Driver USB Dasar --
+          CONFIG_PACKAGE_kmod-mii=y
+          CONFIG_PACKAGE_kmod-usb-net=y
+          CONFIG_PACKAGE_kmod-usb-serial=y
+          CONFIG_PACKAGE_kmod-usb-acm=y
+          CONFIG_PACKAGE_kmod-usb-wdm=y
 
-    - name: Check Build Success
-      run: |
-        cd openwrt/bin/targets/ramips/mt76x8/
-        if [ ! -f openwrt-ramips-mt76x8-fibocom-l716-router-squashfs-sysupgrade.bin ]; then
-          echo "::error::Build failed! Check build.log"
-          exit 1
-        fi
+          # -- Driver Serial Spesifik --
+          CONFIG_PACKAGE_kmod-usb-serial-option=y
+          CONFIG_PACKAGE_kmod-usb-serial-wwan=y
+          CONFIG_PACKAGE_kmod-usb-serial-qualcomm=y
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: openwrt-fibocom-l716-firmware
-        path: openwrt/bin/targets/ramips/mt76x8/
-        retention-days: 7
+          # -- Dukungan Protokol QMI --
+          CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y
+          CONFIG_PACKAGE_uqmi=y
+          CONFIG_PACKAGE_luci-proto-qmi=y
+          CONFIG_PACKAGE_qmi-utils=y
 
-    - name: Upload Build Log
-      if: ${{ always() }}
-      uses: actions/upload-artifact@v3
-      with:
-        name: build-logs
-        path: openwrt/build.log
+          # -- Dukungan Protokol MBIM --
+          CONFIG_PACKAGE_kmod-usb-net-cdc-mbim=y
+          CONFIG_PACKAGE_umbim=y
+
+          # -- Dukungan Protokol NCM --
+          CONFIG_PACKAGE_kmod-usb-net-cdc-ncm=y
+
+          # -- Dukungan Protokol CDC-Ethernet --
+          CONFIG_PACKAGE_kmod-usb-net-cdc-ether=y
+
+          # -- Dukungan ModemManager (Paling Direkomendasikan) --
+          CONFIG_PACKAGE_modemmanager=y
+          CONFIG_PACKAGE_luci-proto-modemmanager=y
+          EOF
+
+      # Langkah 6: Lengkapi konfigurasi dengan nilai default
+      - name: Expand .config with defaults
+        run: |
+          cd openwrt
+          make defconfig
+
+      # Langkah 7: Build firmware (menggunakan semua core untuk kecepatan maksimal)
+      - name: Build the firmware
+        run: |
+          cd openwrt
+          make -j$(nproc)
+
+      # Langkah 8: Unggah hasil build
+      - name: Upload firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: openwrt-19.07-firmware-mr3420v5-full-modem
+          path: |
+            openwrt/bin/targets/ramips/mt76x8/*factory.bin
+            openwrt/bin/targets/ramips/mt76x8/*sysupgrade.bin
